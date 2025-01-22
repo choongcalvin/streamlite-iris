@@ -13,6 +13,10 @@ def download_model(url, output_path):
             for chunk in response.iter_content(chunk_size=8192):
                 if chunk:
                     f.write(chunk)
+        # Verify file size after download
+        file_size = os.path.getsize(output_path)
+        if file_size < 1000000:  # Replace this threshold with your expected model size
+            raise Exception("File downloaded is smaller than expected. Download incomplete.")
         st.write("Model file downloaded successfully.")
     except Exception as e:
         st.error(f"Error downloading model: {e}")
