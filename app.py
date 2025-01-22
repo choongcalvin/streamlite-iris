@@ -4,7 +4,7 @@ import joblib
 import requests
 import os
 
-def download_model(url, output_path):
+def download_model(url, output_path): 
     try:
         session = requests.Session()
         response = session.get(url, stream=True)
@@ -13,10 +13,6 @@ def download_model(url, output_path):
             for chunk in response.iter_content(chunk_size=8192):
                 if chunk:
                     f.write(chunk)
-        # Verify file size after download
-        file_size = os.path.getsize(output_path)
-        if file_size < 1000000:  # Replace this threshold with your expected model size
-            raise Exception("File downloaded is smaller than expected. Download incomplete.")
         st.write("Model file downloaded successfully.")
     except Exception as e:
         st.error(f"Error downloading model: {e}")
@@ -24,25 +20,18 @@ def download_model(url, output_path):
 model_url = "https://drive.google.com/uc?export=download&id=1UJ-T-vAtrMCqnUJrNA44-hossadSh7Wk"
 model_path = "final_rf_model.pkl"
 
-model = None
+if not os.path.exists(model_path):
+    st.write("Downloading model...")
+    download_model(model_url, model_path)
+
+if os.path.exists(model_path):
+    st.write(f"Model file exists. Size: {os.path.getsize(model_path)} bytes")
+
 try:
-    if not os.path.exists(model_path):
-        st.write("Downloading model...")
-        download_model(model_url, model_path)
-
-    if os.path.exists(model_path):
-        st.write(f"Model file exists. Size: {os.path.getsize(model_path)} bytes")
-
-    # Load the model
     model = joblib.load(model_path)
     st.write("Model loaded successfully!")
 except Exception as e:
     st.error(f"Error loading model: {e}")
-
-if model is None:
-    st.error("The model is not available. Predictions cannot be made.")
-else:
-    st.write("Model is ready for predictions.")
 
 st.title("Car Price Prediction App")
 st.write("Enter the car details below to predict the price in Euros.")
@@ -88,25 +77,21 @@ transmission_data = {col: 1 if col == selected_transmission else 0 for col in tr
 fuel_type_data = {col: 1 if col == selected_fuel_type else 0 for col in fuel_types}
 
 if st.button("Predict"):
-    if model is None:
-        st.error("The model is not available. Predictions cannot be made.")
-    else:
-        try:
-            input_data = pd.DataFrame({
-                "power_kw": [power_kw],
-                "power_ps": [power_ps],
-                "fuel_consumption_g_km": [fuel_consumption],
-                "mileage_in_km": [mileage_in_km],
-                "car_age_years": [car_age],
-                **brand_data,
-                **color_data,
-                **transmission_data,
-                **fuel_type_data
-            })
+    try:
+        input_data = pd.DataFrame({
+            "power_kw": [power_kw],
+            "power_ps": [power_ps],
+            "fuel_consumption_g_km": [fuel_consumption],
+            "mileage_in_km": [mileage_in_km],
+            "car_age_years": [car_age],
+            **brand_data,
+            **color_data,
+            **transmission_data,
+            **fuel_type_data
+        })
 
-            prediction = model.predict(input_data)[0]
+        prediction = model.predict(input_data)[0]
 
-            st.success(f"The predicted price is €{prediction:,.2f}")
-        except Exception as e:
-            st.error(f"Error making prediction: {e}")
-
+        st.success(f"The predicted price is €{prediction:,.2f}")
+    except Exception as e:
+        st.error(f"Error making prediction: {e}")
