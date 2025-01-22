@@ -4,19 +4,29 @@ import joblib
 import requests
 import os
 
-def download_model(url, output_path): 
+def download_model(url, output_path):
     try:
         session = requests.Session()
         response = session.get(url, stream=True)
-        response.raise_for_status()
+        
+        if "confirm" in response.text:
+            # Extract the confirm token
+            confirm_token = response.text.split("confirm=")[1].split("&")[0]
+            url = f"{url}&confirm={confirm_token}"
+            response = session.get(url, stream=True)
+
         with open(output_path, "wb") as f:
             for chunk in response.iter_content(chunk_size=8192):
                 if chunk:
                     f.write(chunk)
+
+        file_size = os.path.getsize(output_path)
+        if file_size < 1000000:  # Replace with your expected size threshold in bytes
+            raise Exception("File downloaded is smaller than expected. Download incomplete.")
         st.write("Model file downloaded successfully.")
     except Exception as e:
         st.error(f"Error downloading model: {e}")
-
+        
 model_url = "https://drive.google.com/uc?export=download&id=1UJ-T-vAtrMCqnUJrNA44-hossadSh7Wk"
 model_path = "final_rf_model.pkl"
 
