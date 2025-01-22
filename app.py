@@ -2,24 +2,36 @@ import streamlit as st
 import pandas as pd
 import joblib
 import requests
+import os
 
 def download_model(url, output_path):
-    response = requests.get(url)
-    with open(output_path, "wb") as f:
-        f.write(response.content)
+    try:
+        session = requests.Session()
+        response = session.get(url, stream=True)
+        response.raise_for_status()
+        with open(output_path, "wb") as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                if chunk:
+                    f.write(chunk)
+        st.write("Model file downloaded successfully.")
+    except Exception as e:
+        st.error(f"Error downloading model: {e}")
 
 model_url = "https://drive.google.com/uc?export=download&id=1UJ-T-vAtrMCqnUJrNA44-hossadSh7Wk"
 model_path = "final_rf_model.pkl"
 
-try:
-    with open(model_path, "rb") as f:
-        st.write("Model file already exists locally.")
-except FileNotFoundError:
-    st.write("Downloading the model file...")
+if not os.path.exists(model_path):
+    st.write("Downloading model...")
     download_model(model_url, model_path)
-    st.write("Model file downloaded successfully.")
 
-model = joblib.load(model_path)
+if os.path.exists(model_path):
+    st.write(f"Model file exists. Size: {os.path.getsize(model_path)} bytes")
+
+try:
+    model = joblib.load(model_path)
+    st.write("Model loaded successfully!")
+except Exception as e:
+    st.error(f"Error loading model: {e}")
 
 st.title("Car Price Prediction App")
 st.write("Enter the car details below to predict the price in Euros.")
@@ -65,19 +77,21 @@ transmission_data = {col: 1 if col == selected_transmission else 0 for col in tr
 fuel_type_data = {col: 1 if col == selected_fuel_type else 0 for col in fuel_types}
 
 if st.button("Predict"):
-    input_data = pd.DataFrame({
-        "power_kw": [power_kw],
-        "power_ps": [power_ps],
-        "fuel_consumption_g_km": [fuel_consumption],
-        "mileage_in_km": [mileage_in_km],
-        "car_age_years": [car_age],
-        **brand_data,
-        **color_data,
-        **transmission_data,
-        **fuel_type_data
-    })
+    try:
+        input_data = pd.DataFrame({
+            "power_kw": [power_kw],
+            "power_ps": [power_ps],
+            "fuel_consumption_g_km": [fuel_consumption],
+            "mileage_in_km": [mileage_in_km],
+            "car_age_years": [car_age],
+            **brand_data,
+            **color_data,
+            **transmission_data,
+            **fuel_type_data
+        })
 
-    prediction = model.predict(input_data)[0]
+        prediction = model.predict(input_data)[0]
 
-    st.success(f"The predicted price is €{prediction:,.2f}")
-
+        st.success(f"The predicted price is €{prediction:,.2f}")
+    except Exception as e:
+        st.error(f"Error making prediction: {e}")
